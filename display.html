@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>班级积分 · 大屏</title>
+<style>
+  :root {
+    --bg:#0e1220; --card:#171c30; --line:#2a3050; --muted:#8a92b8;
+    --gold:#ffd54a; --silver:#d7dce8; --bronze:#d08b5f;
+    --red:#ef4444; --green:#22c55e; --blue:#4f8ef7;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:radial-gradient(1200px 800px at 50% -10%, #1a2340 0%, var(--bg) 60%);
+    color:#fff; font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+    min-height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+
+  /* ── 选班页 ── */
+  #picker { position:fixed; inset:0; z-index:90; background:var(--bg); display:flex;
+    flex-direction:column; align-items:center; justify-content:center; gap:32px; padding:40px; }
+  #picker.hide { display:none; }
+  #picker h1 { font-size:clamp(32px,4vw,56px); font-weight:900; letter-spacing:2px; }
+  #classGrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+    gap:24px; width:100%; max-width:1200px; }
+  .class-card { background:linear-gradient(135deg,#1c2440,#171c30); border:2px solid var(--line);
+    border-radius:24px; padding:36px 28px; text-align:center; cursor:pointer;
+    transition:transform .12s, border-color .12s; }
+  .class-card:hover { transform:translateY(-4px); border-color:var(--blue); }
+  .class-card .nm { font-size:clamp(26px,3vw,38px); font-weight:900; }
+  .class-card .cnt { color:var(--muted); font-size:clamp(16px,1.6vw,22px); margin-top:10px; }
+  #picker .err { color:var(--red); font-size:20px; }
+  #picker .retry { margin-top:10px; padding:12px 34px; font-size:20px; border-radius:14px;
+    border:1px solid var(--line); background:var(--card); color:#fff; cursor:pointer; }
+
+  /* ── 大屏主区 ── */
+  #board { flex:1; display:none; flex-direction:column; min-height:0; }
+  #board.show { display:flex; }
+
+  header { display:flex; align-items:center; gap:22px; padding:18px 32px;
+    background:rgba(14,18,32,.85); border-bottom:1px solid var(--line); flex-shrink:0; }
+  header .title { font-size:clamp(26px,2.6vw,40px); font-weight:900; flex-shrink:0; }
+  header .tabs { display:flex; gap:8px; background:var(--card); border:1px solid var(--line);
+    border-radius:999px; padding:5px; }
+  header .tab { padding:10px 28px; font-size:clamp(18px,1.7vw,24px); font-weight:700;
+    border:none; background:none; color:var(--muted); border-radius:999px; cursor:pointer; }
+  header .tab.on { background:var(--blue); color:#fff; }
+  header .mute { margin-left:auto; padding:10px 22px; font-size:clamp(18px,1.7vw,24px);
+    border-radius:999px; border:1px solid var(--line); background:var(--card); color:#fff; cursor:pointer; }
+  header .mute.off { opacity:.55; }
+
+  #sseBanner { display:none; background:rgba(220,38,38,.16); color:#fca5a5; text-align:center;
+    padding:8px 16px; font-size:clamp(15px,1.4vw,19px); border-bottom:1px solid rgba(220,38,38,.4); flex-shrink:0; }
+  #sseBanner.show { display:block; }
+
+  main { flex:1; overflow-y:auto; padding:26px 30px 12px; }
+  #grid { display:grid; gap:22px; grid-template-columns:repeat(4,1fr); }
+
+  /* ── 学生卡片 ── */
+  .card { position:relative; background:linear-gradient(160deg,#1b2138,#141828); border:3px solid var(--line);
+    border-radius:22px; padding:24px 14px 26px; display:flex; flex-direction:column;
+    align-items:center; gap:12px; overflow:hidden; min-height:230px;
+    box-shadow:0 8px 24px rgba(0,0,0,.35); }
+  .card.gold  { border-color:var(--gold);  box-shadow:0 0 28px rgba(255,213,74,.35), 0 8px 24px rgba(0,0,0,.35); }
+  .card.silver{ border-color:var(--silver); box-shadow:0 0 22px rgba(215,220,232,.28), 0 8px 24px rgba(0,0,0,.35); }
+  .card.bronze{ border-color:var(--bronze); box-shadow:0 0 20px rgba(208,139,95,.28), 0 8px 24px rgba(0,0,0,.35); }
+  .card .rank { position:absolute; top:10px; left:14px; font-size:clamp(20px,1.9vw,28px); font-weight:900; }
+  .card .rank.r1{ color:var(--gold);} .card .rank.r2{ color:var(--silver);} .card .rank.r3{ color:var(--bronze);}
+  .avatar { width:clamp(72px,7vw,104px); height:clamp(72px,7vw,104px); border-radius:50%;
+    display:flex; align-items:center; justify-content:center; font-size:clamp(34px,3.4vw,50px);
+    font-weight:900; flex-shrink:0; box-shadow:inset 0 -6px 14px rgba(0,0,0,.25), 0 4px 14px rgba(0,0,0,.3); }
+  .name { font-size:clamp(22px,2.1vw,30px); font-weight:700; max-width:100%;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .points { font-size:clamp(42px,4.2vw,64px); font-weight:900; color:var(--gold);
+    line-height:1; text-shadow:0 0 22px rgba(255,213,74,.45); }
+  .card .empty { color:var(--muted); font-size:clamp(16px,1.5vw,22px); padding:60px 0; text-align:center; grid-column:1/-1; }
+
+  /* ── 加分飘升 / 扣分抖动 ── */
+  .float { position:absolute; top:16%; left:50%; transform:translateX(-50%); z-index:6;
+    font-size:clamp(44px,4.4vw,66px); font-weight:900; color:var(--gold); pointer-events:none;
+    text-shadow:0 0 20px rgba(255,213,74,.95); animation:floatUp 1.15s ease-out forwards; }
+  @keyframes floatUp {
+    0%   { opacity:0; transform:translate(-50%,12px) scale(.65); }
+    16%  { opacity:1; transform:translate(-50%,0) scale(1.18); }
+    100% { opacity:0; transform:translate(-50%,-100px) scale(1); }
+  }
+  .card.shake { animation:shake .5s; border-color:var(--red) !important;
+    box-shadow:0 0 26px rgba(239,68,68,.5), 0 8px 24px rgba(0,0,0,.35) !important; }
+  @keyframes shake {
+    10%,90%{transform:translateX(-2px);} 20%,80%{transform:translateX(4px);}
+    30%,50%,70%{transform:translateX(-7px);} 40%,60%{transform:translateX(7px);}
+  }
+
+  footer { flex-shrink:0; text-align:center; color:var(--muted); font-size:clamp(13px,1.2vw,17px);
+    padding:10px 16px 14px; }
+
+  /* ── 撤销提示条 ── */
+  #toast { position:fixed; top:86px; left:50%; transform:translateX(-50%) translateY(-16px); z-index:120;
+    background:#2b3246; color:#c7cde0; border:1px solid #4b5563; border-radius:14px;
+    padding:12px 26px; font-size:clamp(16px,1.5vw,21px); opacity:0; pointer-events:none;
+    transition:opacity .25s, transform .25s; box-shadow:0 10px 30px rgba(0,0,0,.45); }
+  #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- 选班页 -->
+<div id="picker">
+  <h1>🎯 班级积分大屏</h1>
+  <div id="classGrid"></div>
+  <div class="err" id="pickerErr" style="display:none">
+    无法连接服务器
+    <br><button class="retry" id="btnRetry">重试</button>
+  </div>
+</div>
+
+<!-- 大屏 -->
+<div id="board">
+  <header>
+    <span class="title" id="className">班级</span>
+    <div class="tabs">
+      <button class="tab on" data-tab="total" id="tabTotal">总分榜</button>
+      <button class="tab" data-tab="week" id="tabWeek">本周榜</button>
+    </div>
+    <button class="mute" id="btnMute" title="静音开关">🔊</button>
+  </header>
+  <div id="sseBanner">连接中断，重连中…</div>
+  <main><div id="grid"></div></main>
+  <footer id="footer">最后更新 --:--:--</footer>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ========== 配置 ========== */
+const API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.protocol === 'file:')
+  ? 'http://localhost:3000'
+  : 'https://points.8567543.xyz';
+
+/* ========== 状态 ========== */
+const state = {
+  classId: null, className: '',
+  students: [],                 // [{id,name,color,points}]
+  weekPoints: new Map(),        // student_id -> 本周累计
+  tab: 'total',
+  eventsCache: { t: 0, data: null },
+  oldPoints: new Map(),         // 上一次渲染的 points，用于 diff 动画
+  shakeTimers: new Map(),       // card id -> timeout，支持扣分抖动叠加
+};
+const $ = id => document.getElementById(id);
+const grid = $('grid');
+
+/* ========== 工具 ========== */
+const fmtTime = () => new Date().toLocaleTimeString('zh-CN', { hour12: false });
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+const avatarChar = name => {
+  const n = name.trim();
+  if (!n) return '?';
+  const c = n[0];
+  return /[\u4e00-\u9fff]/.test(c) ? c : c.toUpperCase();
+};
+const contrastColor = hex => {           // 依据亮度选头像字色
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return '#fff';
+  const n = parseInt(m[1], 16);
+  const r = n >> 16, g = (n >> 8) & 255, b = n & 255;
+  return (0.299 * r + 0.587 * g + 0.114 * b) > 170 ? '#1a1a2e' : '#fff';
+};
+
+/* 本周起点：周一 00:00（本地时区），返回 unix 秒 */
+function mondayStartSec(now) {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return Math.floor(d.getTime() / 1000);
+}
+
+/* ========== 网格列数自适应（4-8 列） ========== */
+function applyCols() {
+  const w = grid.clientWidth || window.innerWidth;
+  const cols = Math.max(4, Math.min(8, Math.round(w / 250)));
+  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+}
+window.addEventListener('resize', applyCols);
+
+/* ========== 数据拉取 ========== */
+async function fetchJSON(url, tag) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const data = await r.json();
+  if (tag) console.debug(`[display] ${tag}`, data);
+  return data;
+}
+
+async function loadClasses() {
+  const list = await fetchJSON(API + '/api/classes', 'classes');
+  const box = $('classGrid');
+  box.innerHTML = '';
+  for (const c of list) {
+    const card = document.createElement('div');
+    card.className = 'class-card';
+    card.innerHTML = `<div class="nm">${esc(c.name)}</div><div class="cnt">${c.student_count} 名学生</div>`;
+    card.onclick = () => { location.search = '?class=' + c.id; };
+    box.appendChild(card);
+  }
+  $('pickerErr').style.display = 'none';
+}
+
+async function loadEvents() {           // 本周榜数据源
+  const now = Date.now();
+  if (state.eventsCache.data && now - state.eventsCache.t < 30000) return state.eventsCache.data;
+  const list = await fetchJSON(API + `/api/classes/${state.classId}/events`, 'events');
+  state.eventsCache = { t: now, data: list };
+  return list;
+}
+
+function computeWeekPoints(events) {    // 过滤本周一 00:00 之后的有效事件
+  const from = mondayStartSec(Date.now());
+  const map = new Map();
+  for (const ev of events) {
+    if (ev.undone_at != null) continue;
+    if (ev.created_at < from) continue;
+    map.set(ev.student_id, (map.get(ev.student_id) || 0) + (ev.delta || 0));
+  }
+  return map;
+}
+
+let refreshSeq = 0;                       // 并发刷新防竞态：只采纳最新一次结果
+async function refresh(forceEvents) {
+  if (!state.classId) return;
+  const seq = ++refreshSeq;
+  const wantEvents = state.tab === 'week' || forceEvents;
+  const [students, events] = await Promise.all([
+    fetchJSON(API + `/api/classes/${state.classId}/students`, 'students'),
+    wantEvents ? loadEvents() : Promise.resolve(null),
+  ]);
+  if (seq !== refreshSeq) return;         // 已有更新的刷新在途，丢弃本次结果
+  const newPoints = new Map();
+  for (const s of students) newPoints.set(s.id, s.points);
+  state.students = students;
+  if (events) state.weekPoints = computeWeekPoints(events);
+  render();                               // 先渲染新 DOM…
+  applyDiffs(newPoints);                  // …再基于新卡片播放动画（diff 用旧分数）
+  $('footer').textContent = '最后更新 ' + fmtTime();
+  $('sseBanner').classList.remove('show');
+}
+
+/* ========== 渲染 ========== */
+const scoreOf = s => state.tab === 'total' ? s.points : (state.weekPoints.get(s.id) || 0);
+
+function sortStudents() {
+  return state.students.slice().sort((a, b) => {
+    const d = scoreOf(b) - scoreOf(a);
+    return d !== 0 ? d : a.name.localeCompare(b.name, 'zh');
+  });
+}
+
+function render() {
+  const sorted = sortStudents();
+  grid.innerHTML = '';
+  if (!sorted.length) {
+    grid.innerHTML = '<div class="empty">暂无学生，请先在手机端添加</div>';
+    return;
+  }
+  let prevScore = NaN, prevMedal = '';
+  sorted.forEach((s, i) => {
+    const score = scoreOf(s);
+    let medal = '';
+    if (score === prevScore) medal = prevMedal;          // 同分并列 → 继承前一名奖牌
+    else if (i === 0) medal = 'gold';
+    else if (i === 1) medal = 'silver';
+    else if (i === 2) medal = 'bronze';
+    prevScore = score; prevMedal = medal;
+
+    const card = document.createElement('div');
+    card.className = 'card' + (medal ? ' ' + medal : '');
+    card.dataset.id = s.id;
+    const rankMark = i === 0 ? '1' : i === 1 ? '2' : i === 2 ? '3' : '';
+    card.innerHTML =
+      (rankMark ? `<span class="rank r${i + 1}">${rankMark}</span>` : '') +
+      `<div class="avatar" style="background:${esc(s.color)};color:${contrastColor(s.color)}">${esc(avatarChar(s.name))}</div>` +
+      `<div class="name">${esc(s.name)}</div>` +
+      `<div class="points">${score}</div>`;
+    grid.appendChild(card);
+  });
+  applyCols();
+}
+
+/* ========== 动画：加分飘升 / 扣分抖动 ========== */
+function applyDiffs(newPoints) {
+  const anims = [];
+  state.oldPoints.forEach((old, id) => {
+    const cur = newPoints.get(id);
+    if (cur === undefined) return;
+    const d = cur - old;
+    if (d !== 0) anims.push({ id, d });
+  });
+  state.oldPoints = newPoints;
+  for (const { id, d } of anims) {
+    const card = grid.querySelector(`[data-id="${id}"]`);
+    if (!card) continue;
+    if (d > 0) {
+      playAddSound();
+      const el = document.createElement('span');
+      el.className = 'float';
+      el.textContent = '+' + d;
+      card.appendChild(el);
+      setTimeout(() => el.remove(), 1200);
+    } else {
+      playSubSound();
+      const prev = state.shakeTimers.get(id);
+      if (prev) clearTimeout(prev);
+      card.classList.remove('shake');
+      void card.offsetWidth;                       // 强制 reflow，保证叠加时重触发
+      card.classList.add('shake');
+      state.shakeTimers.set(id, setTimeout(() => card.classList.remove('shake'), 550));
+    }
+  }
+}
+
+/* ========== WebAudio 音效（合成，无文件） ========== */
+let audioCtx = null;
+let muted = false;
+function ensureAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+function tone(freq, dur, delay) {
+  const t0 = audioCtx.currentTime + delay;
+  const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+  osc.type = 'sine'; osc.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(0.28, t0 + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(g); g.connect(audioCtx.destination);
+  osc.start(t0); osc.stop(t0 + dur + 0.05);
+}
+function playAddSound() {
+  if (muted) return;
+  ensureAudio();
+  tone(660, 0.08, 0);          // 上行短双音
+  tone(880, 0.08, 0.09);
+}
+function playSubSound() {
+  if (muted) return;
+  ensureAudio();
+  tone(220, 0.15, 0);          // 低音
+}
+document.addEventListener('pointerdown', ensureAudio, { once: false });  // 首次点击解锁音频
+
+/* ========== 撤销提示条 ========== */
+let toastTimer = null;
+function showUndoToast(studentId) {
+  const s = state.students.find(x => x.id === studentId);
+  const txt = s ? `已撤销「${s.name}」的一笔积分操作` : '一笔积分操作已撤销';
+  const t = $('toast');
+  t.textContent = txt;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+/* ========== SSE 实时 ========== */
+function connectSSE() {
+  const es = new EventSource(API + '/api/events/stream');
+  es.addEventListener('points_changed', ev => {
+    let data;
+    try { data = JSON.parse(ev.data); } catch { return; }
+    if (data.class_id !== state.classId) return;          // 过滤本班
+    if (data.undone === true && data.delta === 0) {       // 撤销事件 → 灰色提示条
+      showUndoToast(data.student_id);
+    }
+    state.eventsCache.t = 0;                              // 本周榜缓存失效
+    refresh(true).catch(() => {});                        // 重新拉取刷新（不重建 SSE）
+  });
+  es.onopen = () => $('sseBanner').classList.remove('show');
+  es.onerror = () => $('sseBanner').classList.add('show'); // EventSource 原生自动重连（~3s）
+}
+
+/* ========== 交互 ========== */
+$('btnMute').addEventListener('click', () => {
+  muted = !muted;
+  ensureAudio();
+  $('btnMute').textContent = muted ? '🔇' : '🔊';
+  $('btnMute').classList.toggle('off', muted);
+});
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    if (btn.dataset.tab === state.tab) return;
+    state.tab = btn.dataset.tab;
+    document.querySelectorAll('.tab').forEach(b => b.classList.toggle('on', b === btn));
+    if (state.tab === 'week') {
+      try {
+        const events = await loadEvents();
+        state.weekPoints = computeWeekPoints(events);
+      } catch { state.weekPoints = new Map(); }
+    }
+    render();
+  });
+});
+$('btnRetry').addEventListener('click', startPicker);
+
+/* ========== 启动 ========== */
+async function startPicker() {
+  try {
+    await loadClasses();
+  } catch {
+    $('pickerErr').style.display = 'block';
+  }
+}
+
+async function initBoard() {
+  try {
+    const classes = await fetchJSON(API + '/api/classes');
+    const c = classes.find(x => x.id === state.classId);
+    state.className = c ? c.name : ('班级 ' + state.classId);
+  } catch { state.className = '班级 ' + state.classId; }
+  $('className').textContent = state.className;
+  connectSSE();
+  try {
+    await refresh(true);
+  } catch {
+    $('sseBanner').classList.add('show');           // 后端未就绪：横幅 + 5s 自动重试
+    let busy = false;
+    const retry = setInterval(async () => {
+      if (busy) return; busy = true;
+      try { await refresh(true); clearInterval(retry); } catch {} finally { busy = false; }
+    }, 5000);
+  }
+}
+
+const wantClass = Number(new URLSearchParams(location.search).get('class'));
+if (Number.isInteger(wantClass) && wantClass > 0) {
+  state.classId = wantClass;
+  $('picker').classList.add('hide');
+  $('board').classList.add('show');
+  applyCols();
+  initBoard();
+} else {
+  startPicker();
+}
+</script>
+</body>
+</html>

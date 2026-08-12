@@ -1,0 +1,11 @@
+services:
+  class-points:
+    build: ./server
+    container_name: class-points
+    restart: unless-stopped
+    ports:
+      - "8780:3000"
+    environment:
+      - PIN_CODE=${PIN_CODE:?set PIN_CODE in .env}
+    volumes:
+      - ./data:/app/data

@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1220">
+<title>班级积分 · 手机端</title>
+<style>
+  :root {
+    --bg:#0e1220; --card:#171c30; --line:#2a3050; --muted:#8a92b8;
+    --gold:#ffd54a; --red:#ef4444; --green:#22c55e; --blue:#4f8ef7;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { background:var(--bg); color:#fff; font-family:"PingFang SC","Microsoft YaHei",sans-serif; min-height:100vh; padding-bottom:env(safe-area-inset-bottom); }
+  button { font-family:inherit; }
+
+  /* ── 顶部栏 ── */
+  .topbar { position:sticky; top:0; z-index:50; display:flex; align-items:center; gap:10px; padding:14px 16px;
+    background:rgba(14,18,32,.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--line); }
+  .topbar .back { font-size:26px; background:none; border:none; color:#fff; padding:4px 10px 4px 0; cursor:pointer; }
+  .topbar h1 { font-size:20px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .topbar .btn { background:var(--card); border:1px solid var(--line); color:#fff; border-radius:12px; padding:8px 14px; font-size:15px; cursor:pointer; }
+
+  /* ── 屏切换 ── */
+  .screen { display:none; }
+  .screen.active { display:block; }
+
+  /* ── 首页：选班 ── */
+  .class-grid { padding:16px; display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .class-card { background:linear-gradient(135deg,#1c2440,#171c30); border:1px solid var(--line); border-radius:20px;
+    padding:26px 16px; text-align:center; cursor:pointer; transition:transform .08s; }
+  .class-card:active { transform:scale(.96); }
+  .class-card .nm { font-size:22px; font-weight:800; }
+  .class-card .cnt { color:var(--muted); font-size:14px; margin-top:8px; }
+  .class-card.new { border-style:dashed; color:var(--muted); font-size:16px; display:flex; align-items:center; justify-content:center; min-height:96px; }
+
+  /* ── 学生列表 ── */
+  .search { padding:12px 16px 4px; }
+  .search input { width:100%; padding:12px 16px; border-radius:14px; border:1px solid var(--line);
+    background:var(--card); color:#fff; font-size:17px; outline:none; }
+  .stu-list { padding:12px 16px 90px; }
+  .stu-btn { width:100%; display:flex; align-items:center; gap:14px; background:var(--card); border:1px solid var(--line);
+    border-radius:18px; padding:14px 16px; margin-bottom:12px; cursor:pointer; transition:transform .06s; }
+  .stu-btn:active { transform:scale(.97); }
+  .avatar { width:52px; height:52px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-size:24px; font-weight:800; color:#fff; flex-shrink:0; }
+  .stu-btn .nm { font-size:21px; font-weight:700; flex:1; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .stu-btn .pt { font-size:26px; font-weight:900; color:var(--gold); }
+
+  /* ── 学生详情 ── */
+  .detail-head { display:flex; align-items:center; gap:16px; padding:20px 20px 8px; }
+  .detail-head .avatar { width:64px; height:64px; font-size:30px; }
+  .detail-head .nm { font-size:24px; font-weight:800; }
+  .detail-head .pt { font-size:36px; font-weight:900; color:var(--gold); margin-top:4px; }
+  .quick { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; padding:14px 20px 6px; }
+  .quick button { padding:16px 0; border-radius:16px; border:none; font-size:24px; font-weight:900; color:#fff; cursor:pointer; transition:transform .06s; }
+  .quick button:active { transform:scale(.92); }
+  .quick .add { background:linear-gradient(135deg,#16a34a,#22c55e); }
+  .quick .sub { background:linear-gradient(135deg,#dc2626,#ef4444); }
+  .reasons { display:flex; gap:8px; overflow-x:auto; padding:10px 20px 4px; scrollbar-width:none; }
+  .reasons::-webkit-scrollbar { display:none; }
+  .reasons button { flex-shrink:0; padding:9px 16px; border-radius:999px; border:1px solid var(--line);
+    background:var(--card); color:#d5dbf5; font-size:14px; cursor:pointer; }
+  .reasons button.on { background:var(--blue); border-color:var(--blue); color:#fff; font-weight:700; }
+  .cust-reason { padding:10px 20px 0; display:flex; gap:8px; }
+  .cust-reason input { flex:1; padding:10px 14px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:#fff; font-size:15px; outline:none; }
+  .cust-reason button { padding:10px 18px; border-radius:12px; border:none; background:var(--blue); color:#fff; font-size:15px; font-weight:700; cursor:pointer; }
+
+  .hist-title { display:flex; align-items:center; gap:10px; padding:22px 20px 10px; font-size:16px; color:var(--muted); }
+  .undo-latest { margin-left:auto; padding:8px 14px; border-radius:12px; border:1px solid #f59e0b; background:rgba(245,158,11,.12); color:#fbbf24; font-size:14px; font-weight:700; cursor:pointer; }
+  .hist { padding:0 20px 100px; }
+  .ev { display:flex; align-items:center; gap:12px; padding:12px 14px; background:var(--card); border:1px solid var(--line); border-radius:14px; margin-bottom:8px; }
+  .ev .d { font-size:24px; font-weight:900; min-width:58px; text-align:center; }
+  .ev .d.pos { color:var(--green); } .ev .d.neg { color:var(--red); }
+  .ev .meta { flex:1; }
+  .ev .meta .r { font-size:15px; }
+  .ev .meta .t { color:var(--muted); font-size:12px; margin-top:2px; }
+  .ev .undo { padding:7px 12px; border-radius:10px; border:1px solid var(--line); background:none; color:var(--muted); font-size:13px; cursor:pointer; }
+  .ev.undone { opacity:.45; }
+  .ev.undone .d { color:var(--muted); }
+  .ev.undone .tag { font-size:11px; color:var(--muted); border:1px solid var(--line); padding:2px 8px; border-radius:8px; }
+  .empty-note { padding:50px 20px; text-align:center; color:var(--muted); font-size:16px; }
+
+  /* ── 弹层 ── */
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:flex-end; justify-content:center; z-index:100; }
+  .overlay.show { display:flex; }
+  .sheet { background:var(--bg); width:100%; max-width:520px; border-radius:24px 24px 0 0; padding:20px 20px calc(30px + env(safe-area-inset-bottom)); max-height:85vh; overflow-y:auto; }
+  .sheet h2 { font-size:19px; margin-bottom:16px; }
+  .sheet label { display:block; color:var(--muted); font-size:14px; margin:12px 0 6px; }
+  .sheet input { width:100%; padding:13px 15px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:#fff; font-size:16px; outline:none; }
+  .sheet textarea { width:100%; padding:13px 15px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:#fff; font-size:16px; outline:none; min-height:120px; resize:vertical; }
+  .sheet .row { display:flex; gap:10px; }
+  .sheet .row button { flex:1; }
+  .btn-primary { padding:15px 0; border-radius:14px; border:none; background:linear-gradient(135deg,#3b82f6,#6366f1); color:#fff; font-size:17px; font-weight:800; cursor:pointer; margin-top:16px; }
+  .btn-danger { background:linear-gradient(135deg,#dc2626,#ef4444); }
+  .toast { position:fixed; top:60px; left:50%; transform:translateX(-50%); background:#1f2937; color:#fff; padding:10px 20px;
+    border-radius:12px; font-size:14px; z-index:200; opacity:0; transition:opacity .25s; pointer-events:none; }
+  .toast.show { opacity:1; }
+  .pin-note { color:var(--muted); font-size:12px; margin-top:8px; text-align:center; }
+</style>
+</head>
+<body>
+
+<div class="topbar" id="topbar">
+  <button class="back" id="btnBack" style="display:none">‹</button>
+  <h1 id="title">选择班级</h1>
+  <button class="btn" id="btnManage" style="display:none">管理</button>
+</div>
+
+<!-- 首页：选班 -->
+<div class="screen active" id="screen-home">
+  <div class="class-grid" id="classGrid"></div>
+</div>
+
+<!-- 学生列表 -->
+<div class="screen" id="screen-students">
+  <div class="search"><input id="searchInput" placeholder="🔍 搜索学生"></div>
+  <div class="stu-list" id="stuList"></div>
+</div>
+
+<!-- 学生详情 -->
+<div class="screen" id="screen-detail">
+  <div class="detail-head">
+    <div class="avatar" id="dtAvatar">?</div>
+    <div>
+      <div class="nm" id="dtName">-</div>
+      <div class="pt" id="dtPoints">0</div>
+    </div>
+  </div>
+  <div class="quick">
+    <button class="add" data-d="1">+1</button>
+    <button class="add" data-d="2">+2</button>
+    <button class="add" data-d="5">+5</button>
+    <button class="add" data-d="10">+10</button>
+    <button class="add" data-d="20">+20</button>
+    <button class="sub" data-d="-1">-1</button>
+    <button class="sub" data-d="-2">-2</button>
+    <button class="sub" data-d="-5">-5</button>
+    <button class="sub" data-d="-10">-10</button>
+    <button class="sub" data-d="-20">-20</button>
+  </div>
+  <div class="reasons" id="reasonChips"></div>
+  <div class="cust-reason">
+    <input id="custReason" placeholder="自定义事由…" maxlength="30">
+    <button id="btnCustReason">添加</button>
+  </div>
+  <div class="hist-title">
+    历史记录
+    <button class="undo-latest" id="btnUndoLatest">↩ 撤销上次</button>
+  </div>
+  <div class="hist" id="histList"></div>
+</div>
+
+<!-- 管理弹层 -->
+<div class="overlay" id="overlayManage">
+  <div class="sheet">
+    <h2 id="mTitle">班级管理</h2>
+    <label>新建班级（输入班级名，如：一年级3班）</label>
+    <div class="row">
+      <input id="mClassName" placeholder="班级名">
+      <button class="btn-primary" id="btnCreateClass" style="margin-top:0;padding:0 20px">创建</button>
+    </div>
+    <label>批量添加学生（每行一个名字）</label>
+    <textarea id="mNames" placeholder="张三&#10;李四&#10;王五"></textarea>
+    <button class="btn-primary" id="btnAddStudents">添加学生</button>
+    <label id="mDelLabel" style="display:none">危险操作</label>
+    <button class="btn-primary btn-danger" id="btnDelStudent" style="display:none">删除该学生（不可恢复）</button>
+    <button class="btn-primary" id="btnCloseManage" style="background:var(--card);color:var(--muted);border:1px solid var(--line)">关闭</button>
+  </div>
+</div>
+
+<!-- PIN 弹层 -->
+<div class="overlay" id="overlayPin">
+  <div class="sheet">
+    <h2>输入管理口令</h2>
+    <input id="pinInput" type="password" inputmode="numeric" placeholder="口令" maxlength="10" autocomplete="off">
+    <button class="btn-primary" id="btnPinOk">确认</button>
+    <div class="pin-note">口令用于加分/扣分/管理，仅保存在本次会话</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  const API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.protocol === 'file:')
+    ? 'http://localhost:3000' : 'https://points.8567543.xyz';
+  const COLORS = ['#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e','#14b8a6','#06b6d4','#3b82f6','#8b5cf6','#a855f7','#ec4899'];
+  const DEF_REASONS = ['回答问题','作业优秀','纪律表现','帮助同学','课堂进步','不守纪律','作业未完成','迟到','上课讲话','乱扔垃圾'];
+  const $ = id => document.getElementById(id);
+  let pin = sessionStorage.getItem('cp_pin') || '';
+  let classes = [], students = [], curClass = null, curStudent = null, curReason = '';
+  let pendingAction = null;
+
+  /* ── 基础 ── */
+  async function api(path, opts = {}) {
+    const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+    if (pin) headers['X-Pin'] = pin;
+    const res = await fetch(API_BASE + path, { ...opts, headers });
+    if (res.status === 401) { pin = ''; sessionStorage.removeItem('cp_pin'); askPin(); throw new Error('need pin'); }
+    if (!res.ok) { let m = '请求失败'; try { m = (await res.json()).error || m; } catch {} throw new Error(m); }
+    return res.json();
+  }
+  const toast = msg => { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 1800); };
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  function show(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); $(id).classList.add('active'); }
+
+  /* ── PIN ── */
+  function askPin(cb) {
+    pendingAction = cb || null;
+    $('overlayPin').classList.add('show');
+    setTimeout(() => $('pinInput').focus(), 150);
+  }
+  $('btnPinOk').onclick = () => {
+    const v = $('pinInput').value.trim();
+    if (!v) return;
+    pin = v; sessionStorage.setItem('cp_pin', v); $('pinInput').value = '';
+    $('overlayPin').classList.remove('show');
+    if (pendingAction) { const cb = pendingAction; pendingAction = null; cb(); }
+  };
+
+  /* ── 首页 ── */
+  async function loadClasses() {
+    classes = await api('/api/classes');
+    $('classGrid').innerHTML = classes.map(c => `
+      <div class="class-card" data-id="${c.id}">
+        <div class="nm">${esc(c.name)}</div>
+        <div class="cnt">${c.student_count} 名学生</div>
+      </div>`).join('') + `<div class="class-card new" id="btnNewClass">＋ 新建班级</div>`;
+    document.querySelectorAll('.class-card[data-id]').forEach(el => el.onclick = () => openClass(+el.dataset.id));
+    $('btnNewClass').onclick = () => openManage();
+  }
+
+  async function openClass(id) {
+    curClass = classes.find(c => c.id === id);
+    $('title').textContent = curClass.name;
+    $('btnBack').style.display = 'inline-block';
+    $('btnManage').style.display = 'inline-block';
+    show('screen-students');
+    $('searchInput').value = '';
+    await loadStudents();
+  }
+
+  async function loadStudents() {
+    students = await api(`/api/classes/${curClass.id}/students`);
+    renderStudents();
+  }
+
+  function renderStudents() {
+    const q = $('searchInput').value.trim();
+    const list = students.filter(s => !q || s.name.includes(q));
+    $('stuList').innerHTML = list.length ? list.map(s => `
+      <div class="stu-btn" data-id="${s.id}">
+        <div class="avatar" style="background:${s.color}">${esc(s.name[0])}</div>
+        <div class="nm">${esc(s.name)}</div>
+        <div class="pt">${s.points}</div>
+      </div>`).join('') : `<div class="empty-note">${q ? '没有匹配的学生' : '班级还没有学生，点右上角"管理"添加'}</div>`;
+    document.querySelectorAll('.stu-btn[data-id]').forEach(el => el.onclick = () => openStudent(+el.dataset.id));
+  }
+  $('searchInput').oninput = renderStudents;
+
+  /* ── 学生详情 ── */
+  async function openStudent(id) {
+    curStudent = students.find(s => s.id === id);
+    $('dtName').textContent = curStudent.name;
+    $('dtPoints').textContent = curStudent.points;
+    $('dtAvatar').style.background = curStudent.color;
+    $('dtAvatar').textContent = curStudent.name[0];
+    $('btnUndoLatest').style.display = 'block';
+    show('screen-detail');
+    await loadHist();
+  }
+
+  $('btnBack').onclick = () => {
+    if ($('screen-detail').classList.contains('active')) { show('screen-students'); return; }
+    if ($('screen-students').classList.contains('active')) {
+      $('btnBack').style.display = 'none'; $('btnManage').style.display = 'none'; $('title').textContent = '选择班级';
+      show('screen-home'); return;
+    }
+  };
+
+  /* 事由 chips */
+  let customReasons = JSON.parse(localStorage.getItem('cp_reasons') || '[]');
+  const allReasons = () => [...DEF_REASONS, ...customReasons];
+  function renderChips() {
+    $('reasonChips').innerHTML = allReasons().map(r =>
+      `<button class="${r === curReason ? 'on' : ''}" data-r="${esc(r)}">${esc(r)}</button>`).join('');
+    document.querySelectorAll('#reasonChips button').forEach(b => b.onclick = () => {
+      curReason = curReason === b.dataset.r ? '' : b.dataset.r;
+      renderChips();
+    });
+  }
+  $('btnCustReason').onclick = () => {
+    const v = $('custReason').value.trim();
+    if (!v) return;
+    if (!customReasons.includes(v)) { customReasons.push(v); localStorage.setItem('cp_reasons', JSON.stringify(customReasons)); }
+    curReason = v; $('custReason').value = ''; renderChips();
+  };
+
+  /* 加减分 */
+  document.querySelectorAll('.quick button').forEach(b => b.onclick = () => {
+    const delta = +b.dataset.d;
+    const doIt = () => addPoints(delta);
+    if (!pin) askPin(doIt); else doIt();
+  });
+
+  async function addPoints(delta) {
+    try {
+      await api(`/api/students/${curStudent.id}/points`, { method: 'POST', body: JSON.stringify({ delta, reason: curReason }) });
+      curStudent.points += delta;
+      $('dtPoints').textContent = curStudent.points;
+      toast(`${delta > 0 ? '＋' : ''}${delta}${curReason ? ' · ' + curReason : ''}`);
+      if (navigator.vibrate) navigator.vibrate(delta > 0 ? 20 : [30, 40, 30]);
+      await loadHist();
+    } catch (e) { if (e.message !== 'need pin') toast('操作失败：' + e.message); }
+  }
+
+  /* 撤销 */
+  $('btnUndoLatest').onclick = () => {
+    const doIt = async () => {
+      try {
+        const evs = await api(`/api/students/${curStudent.id}/events`);
+        const latest = evs.find(e => e.undoable);
+        if (!latest) return toast('没有可撤销的记录');
+        await api(`/api/events/${latest.id}/undo`, { method: 'POST' });
+        curStudent.points -= latest.delta;
+        $('dtPoints').textContent = curStudent.points;
+        toast('已撤销');
+        await loadHist();
+      } catch (e) { if (e.message !== 'need pin') toast('失败：' + e.message); }
+    };
+    if (!pin) askPin(doIt); else doIt();
+  };
+
+  async function loadHist() {
+    const evs = await api(`/api/students/${curStudent.id}/events`);
+    $('histList').innerHTML = evs.length ? evs.map(e => `
+      <div class="ev ${e.undone_at ? 'undone' : ''}">
+        <div class="d ${e.delta > 0 ? 'pos' : 'neg'}">${e.delta > 0 ? '+' : ''}${e.delta}</div>
+        <div class="meta">
+          <div class="r">${esc(e.reason || '无事由')}</div>
+          <div class="t">${fmtTime(e.created_at)}${e.undone_at ? ' · 已撤销' : ''}</div>
+        </div>
+        ${e.undoable ? `<button class="undo" data-id="${e.id}" data-d="${e.delta}">撤销</button>` : ''}
+      </div>`).join('') : '<div class="empty-note">暂无记录</div>';
+    document.querySelectorAll('.ev .undo').forEach(b => b.onclick = () => {
+      const doIt = async () => {
+        try {
+          await api(`/api/events/${b.dataset.id}/undo`, { method: 'POST' });
+          curStudent.points -= +b.dataset.d;
+          $('dtPoints').textContent = curStudent.points;
+          toast('已撤销'); await loadHist();
+        } catch (e) { if (e.message !== 'need pin') toast('失败：' + e.message); }
+      };
+      if (!pin) askPin(doIt); else doIt();
+    });
+  }
+
+  const fmtTime = ts => { const d = new Date(ts * 1000); return `${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; };
+
+  /* ── 管理 ── */
+  $('btnManage').onclick = () => openManage();
+  function openManage() {
+    $('mTitle').textContent = curClass ? `管理 · ${curClass.name}` : '新建班级';
+    $('mNames').style.display = curClass ? 'block' : 'none';
+    document.querySelector('label[for="mNames"], #overlayManage label').style.display = 'block';
+    document.querySelectorAll('#overlayManage label')[1].style.display = curClass ? 'block' : 'none';
+    $('btnAddStudents').style.display = curClass ? 'block' : 'none';
+    $('mDelLabel').style.display = curStudent ? 'block' : 'none';
+    $('btnDelStudent').style.display = curStudent ? 'block' : 'none';
+    $('overlayManage').classList.add('show');
+  }
+  $('btnCloseManage').onclick = () => $('overlayManage').classList.remove('show');
+
+  $('btnCreateClass').onclick = () => {
+    const doIt = async () => {
+      const name = $('mClassName').value.trim();
+      if (!name) return toast('请输入班级名');
+      await api('/api/classes', { method: 'POST', body: JSON.stringify({ name }) });
+      $('mClassName').value = '';
+      $('overlayManage').classList.remove('show');
+      toast('班级已创建');
+      await loadClasses();
+    };
+    if (!pin) askPin(doIt); else doIt();
+  };
+
+  $('btnAddStudents').onclick = () => {
+    const doIt = async () => {
+      const names = $('mNames').value.split('\n').map(s => s.trim()).filter(Boolean);
+      if (!names.length) return toast('请输入学生名字');
+      const r = await api(`/api/classes/${curClass.id}/students`, { method: 'POST', body: JSON.stringify({ names }) });
+      $('mNames').value = '';
+      $('overlayManage').classList.remove('show');
+      toast(`已添加 ${r.added} 名学生`);
+      await loadStudents();
+    };
+    if (!pin) askPin(doIt); else doIt();
+  };
+
+  $('btnDelStudent').onclick = () => {
+    const doIt = async () => {
+      if (!confirm(`确定删除 ${curStudent.name}？其所有积分记录将一并删除`)) return;
+      await api(`/api/students/${curStudent.id}`, { method: 'DELETE' });
+      $('overlayManage').classList.remove('show');
+      toast('已删除');
+      show('screen-students');
+      await loadStudents();
+    };
+    if (!pin) askPin(doIt); else doIt();
+  };
+
+  /* ── 启动 ── */
+  renderChips();
+  loadClasses().catch(e => toast('无法连接服务器'));
+})();
+</script>
+</body>
+</html>
