@@ -6,8 +6,9 @@ REMOTE="/vol1/1000/class-points"
 export SSHPASS="$($HOME/.local/bin/agent-secret get NAS_ADMIN_PASSWORD)"
 
 echo "== 1/4 同步代码到 NAS: $REMOTE"
-sshpass -e ssh "$NAS" "mkdir -p $REMOTE/data"
-sshpass -e scp -r server/src server/package.json server/package-lock.json server/Dockerfile docker-compose.yml "$NAS:$REMOTE/"
+sshpass -e ssh "$NAS" "mkdir -p $REMOTE/server $REMOTE/data"
+sshpass -e scp -r server/src server/package.json server/package-lock.json server/Dockerfile "$NAS:$REMOTE/server/"
+sshpass -e scp docker-compose.yml "$NAS:$REMOTE/"
 
 echo "== 2/4 准备 .env（本地无则从 NAS 旧值保留）"
 sshpass -e ssh "$NAS" "test -f $REMOTE/.env || echo 'PIN_CODE=1984' > $REMOTE/.env"
