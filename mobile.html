@@ -206,6 +206,49 @@
 
   function show(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); $(id).classList.add('active'); }
 
+  /* ── 屏导航（history 驱动，手机返回键逐层退） ── */
+  function topbarFor(view) {
+    if (view === 'home') {
+      $('title').textContent = '选择班级';
+      $('btnBack').style.display = 'none';
+      $('btnManage').style.display = 'none';
+    } else if (view === 'students') {
+      $('title').textContent = curClass ? curClass.name : '学生';
+      $('btnBack').style.display = 'inline-block';
+      $('btnManage').style.display = 'inline-block';
+    } else {
+      $('title').textContent = curClass ? curClass.name : '学生';
+      $('btnBack').style.display = 'inline-block';
+      $('btnManage').style.display = 'inline-block';
+    }
+  }
+  function goView(view, replace) {
+    if (view === 'home' || (replace && history.state && history.state.view === view)) {
+      history.replaceState({ view }, '');
+    } else {
+      history.pushState({ view }, '');
+    }
+    topbarFor(view);
+    show(viewToScreen(view));
+  }
+  window.addEventListener('popstate', e => {
+    const ov = document.querySelector('.overlay.show');
+    if (ov) {
+      ov.classList.remove('show');
+      history.replaceState({ view: activeScreen() }, '');
+      return;
+    }
+    const v = (e.state && e.state.view) || 'home';
+    topbarFor(v);
+    show(viewToScreen(v));
+  });
+  function viewToScreen(v) { return v === 'home' ? 'screen-home' : v === 'students' ? 'screen-students' : 'screen-detail'; }
+  function activeScreen() {
+    if ($('screen-detail').classList.contains('active')) return 'detail';
+    if ($('screen-students').classList.contains('active')) return 'students';
+    return 'home';
+  }
+
   /* ── PIN ── */
   function askPin(cb) {
     pendingAction = cb || null;
@@ -234,10 +277,7 @@
 
   async function openClass(id) {
     curClass = classes.find(c => c.id === id);
-    $('title').textContent = curClass.name;
-    $('btnBack').style.display = 'inline-block';
-    $('btnManage').style.display = 'inline-block';
-    show('screen-students');
+    goView('students');
     $('searchInput').value = '';
     await loadStudents();
   }
@@ -268,17 +308,11 @@
     $('dtAvatar').style.background = curStudent.color;
     $('dtAvatar').textContent = curStudent.name[0];
     $('btnUndoLatest').style.display = 'block';
-    show('screen-detail');
+    goView('detail', true);
     await loadHist();
   }
 
-  $('btnBack').onclick = () => {
-    if ($('screen-detail').classList.contains('active')) { show('screen-students'); return; }
-    if ($('screen-students').classList.contains('active')) {
-      $('btnBack').style.display = 'none'; $('btnManage').style.display = 'none'; $('title').textContent = '选择班级';
-      show('screen-home'); return;
-    }
-  };
+  $('btnBack').onclick = () => history.back();
 
   /* 事由 chips */
   let customReasons = JSON.parse(localStorage.getItem('cp_reasons') || '[]');
@@ -412,6 +446,7 @@
   };
 
   /* ── 启动 ── */
+  history.replaceState({ view: 'home' }, '');
   renderChips();
   loadClasses().catch(e => toast('无法连接服务器'));
 })();
