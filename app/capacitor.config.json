@@ -1,0 +1,11 @@
+{
+  "appId": "com.moxiuren.classpoints",
+  "appName": "班级积分",
+  "webDir": "web",
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}
